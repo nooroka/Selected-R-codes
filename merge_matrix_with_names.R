@@ -29,8 +29,6 @@ for (file in files[-1]) {
   merged_df <- full_join(merged_df, temp_df, by = names(merged_df)[1])
 }
 
-
-
 fwrite(merged_df, "../results/combined_R_16.csv",sep = "\t")
 end.time <- Sys.time()
 time.taken <- round(end.time - start.time,2)
