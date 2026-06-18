@@ -1,0 +1,165 @@
+---
+title: "Melb_Panova"
+output: html_document
+date: '2022-06-02'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+library(data.table)
+melb <- fread("melb_data.csv") # read the table
+#head(melb)
+melb[, summary(Price)] #look at the price column. now we know average house price
+```
+Mean price in different regions + number of houses in each region along with the average house price.
+```{r pressure, echo=FALSE}
+melb[, .(avg_price = mean(Price), number_of_houses = .N), by = Regionname]
+```
+
+We can create a subset that only contains the address, number of rooms, price of the houses that cost less than 1 million. Price are in millions
+```{r}
+subset = melb[
+     Price < 1000000, 
+     .(Address, Rooms, Price_million = (Price/1000000))
+]
+head(subset)
+```
+Sort by categories increasing order
+```{r}
+melb[
+      ,.(avg_distance = mean(Distance), avg_price = mean(Price)) 
+      ,keyby =.(Type, Regionname)]
+```
+sort the groups according to the aggregated values such as average price
+```{r}
+melb[
+      ,.(avg_distance = mean(Distance), avg_price = mean(Price)) 
+      ,by =.(Type, Regionname)
+][order(avg_price)]
+```
+
+```{r}
+top10sub_by_houses <- melb %>% group_by(Suburb) %>%
+  summarise(Number = n()) %>% arrange(desc(Number)) %>% #top10 suburbs by houses
+  head(10) -> top
+top
+```
+
+Plots
+```{r}
+library(tidyverse)
+datetxt <- as.Date(melb$Date, "%d/%m/%Y") #to date format
+df <- data.frame(Date = datetxt,
+                 year = as.numeric(format(datetxt, format = "%Y")), #date to numeric for year, month and day
+                 month = as.numeric(format(datetxt, format = "%m")),
+                 day = as.numeric(format(datetxt, format = "%d")))
+melb$year <- as.factor(df$year)#numeric to factor
+melb$month <- as.factor(df$month)
+table(melb$year)
+ggplot(melb) +
+ geom_bar(aes(x = year,fill = year))+labs(title = "Years",x = "Years", y = "Number of entries")+theme(plot.title = element_text(size = 18, hjust = 0.5),axis.title = element_text(size = 15)) #barplot of quantity of queries by year
+ggplot(melb) +
+ geom_bar(aes(x = month,fill = month))+labs(title = "Months",x = " Months", y = "Number of entries")+geom_hline(yintercept=2500, color = 'red', size = 2)+theme(plot.title = element_text(size = 18, hjust = 0.5),axis.title = element_text(size = 15))#barplot of quantity of queries by month
+#barplot(table(melb$year),main = "Distribution of Observations over the years")
+#barplot(table(melb$month),main = "Distribution of Observations over the months")
+```
+What types of houses do we have
+```{r}
+melb %>%
+ ggplot() +
+ geom_bar(aes(x = month, fill = Type))+labs(title = "Months table",x = "Months", y = "Number of entries")+theme(plot.title = element_text(size = 18, hjust = 0.5),axis.title = element_text(size = 15))
+```
+in percents:
+```{r}
+melb %>%
+ ggplot() +
+ geom_bar(aes(x = month, fill = Type), position = 'fill')+labs(title = "Months",x = "Months", y = "Number of entries in percent")+theme(plot.title = element_text(size = 18, hjust = 0.5),axis.title = element_text(size = 15))
+```
+
+Count the number of NA values by rows
+```{r}
+apply(melb, 2, function(x) sum(is.na(x)))
+```
+
+Filter out the NA values in the columns - Price, Bedroom2, Bathroom, Car and YearBuilt 2. F
+Filter out all data that has landsize < 121. The reason behind this figure of 121 : 
+```{r}
+housing.df <- melb[which(melb$Price != 'NA' & melb$Bedroom2 != 'NA' & melb$Bathroom != 'NA' & melb$Car != 'NA' & melb$YearBuilt != 'NA' & melb$Landsize > 120),]
+housing.df$Distance <- as.numeric(as.character(housing.df$Distance)) ## to change datatype of Distance from Factor to Numeric
+par(mar=c(3.1,12,4.1,2.1), mgp = c(11, 1, 0)) #margin sizes and axis label locations are set
+boxplot(housing.df$Price ~ housing.df$Regionname, horizontal = TRUE, ylab = "Region Name", xlab = "Price of houses", main = "Boxplot of price of houses by region", las = 1) #prices of houses in regions
+
+```
+Statistics
+```{r}
+price <- melb$Price
+price <- price[!is.na(price)]
+#check normality, shapiro-wilk doesn't work due to the size of the sample
+hist(price, main = "Histogram of turnout", col = "tomato", freq = FALSE)
+curve(dnorm(x, mean = mean(price, na.rm = TRUE), 
+            sd = sd(price, na.rm = TRUE)), 
+            col = "blue", lwd = 2, add = TRUE)
+```
+Not normal distribution
+Is there difference in prices between house and town house?
+
+```{r}
+melb2 <- filter(melb, Type!="u")
+wilcox.test(Price~Type,data = melb2)
+```
+There is difference
+
+Check the distributions for normality
+```{r}
+melbh <- filter(melb, Type=="h")
+melbu <- filter(melb, Type=="u")
+melbt <- filter(melb, Type=="t")
+```
+Not normal
+```{r}
+priceh <- melbh$Price
+priceh <- priceh[!is.na(priceh)]
+#check normality, shapiro-wilk doesn't work due to the size of the sample
+hist(priceh, main = "Histogram of turnout", col = "tomato", freq = FALSE)
+curve(dnorm(x, mean = mean(priceh, na.rm = TRUE), 
+            sd = sd(price, na.rm = TRUE)), 
+            col = "blue", lwd = 2, add = TRUE)
+```
+```{r}
+library("tidyverse")
+ggplot(melb, aes(x = Type, y = Price, fill = Type))+geom_boxplot()+theme(plot.title = element_text(size = 18, hjust = 0.5),axis.title = element_text(size = 15))+labs(title = "Type of house")#boxplots of three types of house
+```
+
+```{r}
+m1<-kruskal.test(Price ~ Type, data=melb)
+m1
+```
+Groups are not from the same distribution, the difference is significant
+
+Is Regionname bound with Type?
+```{r}
+melb3 <- na.omit (melb) #remove na
+table(melb3$Type, melb3$Regionname)
+```
+
+```{r}
+chisq.test(table(melb3$Regionname, melb3$Type), correct=FALSE)
+```
+Regionname and Type are dependent.
+```{r}
+ggplot(melb3) +
+  aes(x = Type, fill = Regionname) +
+  geom_bar(position = "fill")+labs(title = "Regions",x = "Type", y = "Count")+theme(plot.title = element_text(size = 18, hjust = 0.5),axis.title = element_text(size = 15))
+```
+
+
+
