@@ -1,0 +1,26 @@
+import os
+values_start = []
+values_end = []
+for file in os.listdir("../results/empty/empty6/"):
+    file2 = file.split(".")
+    file3 = file2[0].split("_")
+    values_start.append(file3[1])
+    values_end.append(file3[2])
+#print(values_start)
+#print(values_end)
+pairs = list(zip(values_start, values_end))
+combination = []
+for i in range(len(pairs)):
+     element = str(pairs[i][0])+"_"+str(pairs[i][1])
+     combination.append(element)
+#print(combination)
+rule all: 
+     input: expand("../results/kmer_stats/statistics_{combination2}.tsv", combination2 = combination),
+rule process_value:
+    input:
+        "../results/empty/empty6/statistics_{combination2}"
+    output:
+        "../results/kmer_stats/statistics_{combination2}.tsv"
+    shell:
+        "Rscript median_mean_snake.R {input} {output}"
+
