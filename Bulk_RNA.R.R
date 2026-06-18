@@ -156,9 +156,7 @@ dds
 dds <- DESeq(dds)
 dds
 
-# Now table is normalized with DESeq
-# That is more accurate normalization
-# Now use it for more accurate PCA plot 
+
 vst <- varianceStabilizingTransformation(dds) # get data from dds
 plotPCA(vst,intgroup=c("Condition")) + coord_fixed(ratio = 4)
 plotPCA(vst,intgroup=c("Day")) + coord_fixed(ratio = 4)
@@ -167,21 +165,15 @@ plotPCA(vst,intgroup=c("Cell_type")) + coord_fixed(ratio = 4)
 dists <-  dist(t(assay(vst)))
 plot(hclust(dists)) # hclust for columns
 
-## differential expression analysis with DESeq2
-## The input data for the DESeq is the table - filtered and unnormalized - like "es" object for now
-## Now we take table with ~15000 genes (it can be cropper to the 12000 genes if you want)
 
 
 
 
 
 
-# Example of differential expression (DE) calculation for one comparison: wt_control vs 232_control
 dir.create("./de/", showWarnings = F)  # Create an output directory
 unique(dds$Condition)
-# Pay attention to the order of compared conditions
-# log2FC = 232_control -  wt_control   
-# If  log2FC>0 => gene is upregulated in 232_control; if log2FC<0 => gene is downregulated
+
 
 de <- results(dds, contrast = c("Condition", "232_A_term", "wt_A_term"), cooksCutoff = F)
 head(de)
@@ -213,11 +205,7 @@ gn.selected <- abs(de$log2FoldChange) > 1.5 & de$padj < 0.01
 text(de$log2FoldChange[gn.selected],
      -log10(de$padj)[gn.selected],
      lab=de$Symbol[gn.selected ], cex=0.4)
-## Pathway analysis
 
-## Lets analyse DEGs (Differentially Expressed Genes) and pathways they belong to
-## Take pathways from GO BP (Gene Ontology - Biological Processes) database
-# NB! Analyze UP and DOWN genes SEPARATELY
 library(clusterProfiler)
 de_filt <- de[padj<0.01 & (log2FoldChange > 0.5 | log2FoldChange < -0.5)] # Just filter our DEGs
 genes <- de_filt[log2FoldChange   >0.6]$Symbol # Lets take a vector of Entrez names of upregulated genes
@@ -227,12 +215,12 @@ head(go_deg$Description)
 barplot(go_deg, showCategory=20) # first 20 pathways with FDR=0.05 
 plotGOgraph(go_deg, firstSigNodes = 10) # plot Graph
 
-# Also you can copy genes and go to MSigDB of another online tool
+
 paste0(genes, collapse = " ")
 ## GSEA - Gene Set Enrichment Analysis
 # FDR = 0.05
 
-# First lets do it using clusterProfiler package :
+
 library(clusterProfiler)
 genes <- as.vector(de$stat) # take stat variable from de table - that is t-statistics from DE analysis that is used as ORDER of genes
 names(genes) <- as.vector(de$Symbol) #name genes with their symbol
@@ -247,41 +235,38 @@ dotplot(gse, showCategory=20, split=".sign",font.size = 7) + facet_grid(.~.sign)
 gseaplot(gse, geneSetID = 5, by = "runningScore", title = gse$Description[5])
 gseaplot(gse, geneSetID = 1, by = "runningScore", title = gse$Description[1])
 
-# Now lets do in manually using fgsea package
-# Lets download pathways from database
+
 library(msigdbr)
-# Gene Ontology biological processes pathways from MSigDB (https://www.gsea-msigdb.org/gsea/msigdb/index.jsp)
+
 m_df <- msigdbr(species = "Mus musculus", category = "C5", subcategory = "BP")#C5 category Gene Ontology
 m_df
 pathways <- split(m_df$entrez_gene, m_df$gs_name)
 # t statistics - just a column from de-table
 stats <- de[, setNames(stat, Entrez)]
 
-# Lets get a table of molecular pathways with information about p-value, NES etc
+
 library(fgsea)
 fr <- fgsea(pathways, stats, nperm = 100000, nproc=4, minSize=15, maxSize=500)
 fr[order(padj)]     # Look at this
 fr_res <- fr[order(NES)][padj < 0.01]#filtration
-# Let's exclude pathways that are similar to each other, and remain only the most important (padj<0.01)
+
 collapsedPathways <- collapsePathways(fr[order(pval)][padj < 0.01], pathways, stats)
 str(collapsedPathways)#there were 103 pathways--> 58 pathways
-# The list of remaining pathways is in the collapsedPathways$mainPathways
 
-# Let's order these pathways according to the NES and p-value
 mainPathways <- fr[pathway %in% collapsedPathways$mainPathways][
   order(sign(ES)*log(pval)), pathway]
 
 frMain <- fr[match(mainPathways, pathway)] # From the table fr select only mainPathways
-# Change ENTREZID to the SYMBOL in the column "leadingEdge"
+
 frMain[, leadingEdge := lapply(leadingEdge, mapIds, 
                                x=org.Mm.eg.db, keytype="ENTREZID", column="SYMBOL")]
-# Save table of interesting pathways
+
 pdf("wt_A.vs.232_A.pdf", width=12, height=2 + length(mainPathways) * 0.25)
 plotGseaTable(pathways = pathways[mainPathways][1:25], stats = stats, fgseaRes=frMain, gseaParam = 0.5)#first 25 pathways
 dev.off()
 dir.create("gsea")
 fwrite(frMain, file="gsea/wt_control.vs.232_control.filtered.tsv", sep="\t", sep2=c("", " ", ""))
-# Draw GSEA plots and save
+
 pdf("wt_A.vs.232_A.pdf", width=12, height=2 + length(mainPathways) * 0.25)
 plotGseaTable(pathways = pathways[mainPathways][1:25], stats = stats, fgseaRes=frMain, gseaParam = 0.5)#first 25 pathways
 dev.off()
