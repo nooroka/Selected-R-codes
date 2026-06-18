@@ -6,7 +6,7 @@ library(dplyr)
 library("stringr")
 
 start.time <- Sys.time()
-#ковидники на месте
+
 #start_row<-1
 #end_row<-10000000
 #total_rows<-end_row-start_row+1
