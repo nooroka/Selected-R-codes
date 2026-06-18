@@ -1,0 +1,116 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+strp<-fread("/mnt/16TB/runs/panova_vv/strept.txt")
+
+colnames(strp)<-c("kmers","count")
+strp$count
+strp$count2<-strp$count/sum(strp$count) #относительная представленность, clr не сделаешь
+strp
+```
+
+```{r}
+setdiff(strp$kmers,data$kmers)
+```
+```{r}
+library(readr)
+library(tidyverse)
+kmers_good<-fread("kmers_good_lin_lin0.05rank0.51-0.71.txt",header=FALSE)
+#kmers_good
+colnames(kmers_good)<-c("kmers")
+
+inter2<-intersect(kmers_good$kmers,strp$kmers) #можно  так, рассматриваются только k-меры
+inter2<-data.table(inter2)
+#inter2
+length(kmers_good$kmers)
+write_delim(inter2,"inter_10_lin_lin0.05_strept_rank0.51-0.71.txt")
+```
+```{r}
+setd2<-setdiff(strp$kmers,kmers_good$kmers) #все значения в strp, которые не встречаются в kmers_good
+setd2<-data.table(setd2)
+setd2
+write_delim(setd2,"setd2_10_lin_lin_streptrank0.05_0.51-0.71.txt")
+```
+
+```{r}
+library(VennDiagram)
+v1 <-kmers_good$kmers
+v2 <-inter2$inter2
+v1
+v2
+length(v2)
+length(v1)
+```
+
+```{r}
+vlist <- list(v1, v2)
+
+#names(vlist) <- c("list1", "list2")
+#venn.diagram(vlist[1:2], 
+ #   filename="Venn_2way_lin_exp0.01.png",
+  #  imagetype="png", main="Venn diagram",
+  #  main.col="red",
+  #  fill=c("lightgreen", "lightblue"),
+  #  col=c("lightgreen", "lightblue"),
+  #  cat.col=c("green", "blue"))
+
+```
+
+```{r}
+vlist
+```
+
+```{r}
+display_venn <- function(vlist){
+  library(VennDiagram)
+  grid.newpage()
+  venn_object <- venn.diagram(vlist[1:2],filename = NULL, fill = c("dodgerblue", "goldenrod1"),  category.names = c("Kmers_good" , "Kmers_good_strept"), cat.col = c("blue", "red"),  cat.cex = rep(1, 2), cex = 1)
+  grid.draw(venn_object)
+}
+```
+
+```{r}
+display_venn(vlist)
+```
+
+```{r}
+v11<-c(v1)
+v22<-c(v2)
+library("ggvenn")
+ggvenn(list("Kmers_good"=v11,"Kmers_good_strept"=v22))
+```
+
+```{r}
+v3 <-kmers_good$kmers
+v4 <-strp$kmers
+v3
+v4
+```
+
+```{r}
+display_venn2 <- function(vlist){
+  library(VennDiagram)
+  grid.newpage()
+  venn_object <- venn.diagram(vlist[1:2],filename = NULL,fill = c("dodgerblue", "goldenrod1"),  category.names = c("Kmers_good" , "Kmers_strept_all"), cat.col = c("blue", "red"),  cat.cex = rep(0.6, 2), cex = 1)
+  grid.draw(venn_object)
+}
+```
+
+```{r}
+vlist2 <- list(v3, v4)
+display_venn2(vlist2)
+```
+```{r}
+v33<-c(v3)
+v44<-c(v4)
+library("ggvenn")
+ggvenn(list("Kmers_good"=v33,"Kmers_strept_all"=v44))
+```
+
